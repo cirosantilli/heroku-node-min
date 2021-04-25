@@ -1,0 +1,22 @@
+{
+  "name": "heroku-node-min",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node --unhandled-rejections=strict ./index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cirosantilli/heroku-node-min.git"
+  },
+  "author": "Ciro Santilli",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cirosantilli/heroku-node-min/issues"
+  },
+  "homepage": "https://github.com/cirosantilli/heroku-node-min",
+  "dependencies": {
+    "express": "4.17.1"
+  }
+}
