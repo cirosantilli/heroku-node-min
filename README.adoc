@@ -2,4 +2,4 @@
 
 Small tests for Heroku Node.js. Just need something that deploys very quickly for quickly testing some stuff.
 
-Running it at: https://cirosantilli-node-min.herokuapp.com/ while the free tier lasts.
+Running it at: https://cirosantilli-node-min.herokuapp.com while the free tier lasts.
