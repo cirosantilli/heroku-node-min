@@ -3,3 +3,11 @@
 Small tests for Heroku Node.js. Just need something that deploys very quickly for quickly testing some stuff.
 
 Running it at: https://cirosantilli-node-min.herokuapp.com while the free tier lasts.
+
+Setup:
+
+....
+heroku git:remote -a <YOUR_APP_NAME>
+heroku config:set SECRET_PASSWORD=<YOUR_SECRET_PASSWORD>
+heroku addons:create mailgun:starter
+....

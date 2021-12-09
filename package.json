@@ -17,6 +17,8 @@
   },
   "homepage": "https://github.com/cirosantilli/heroku-node-min",
   "dependencies": {
-    "express": "4.17.1"
+    "express": "4.17.1",
+    "nodemailer": "^6.7.2",
+    "nodemailer-mailgun-transport": "^2.1.3"
   }
 }

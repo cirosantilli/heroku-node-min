@@ -2,6 +2,9 @@
 
 // https://cirosantilli.com/express-js
 
+const nodemailer = require('nodemailer');
+const nodemailerMailgunTransport = require('nodemailer-mailgun-transport');
+
 const express = require('express')
 
 // Test it.
@@ -36,6 +39,7 @@ function check_helper(req, res) {
 
 const tests = [
   ['/hello', 'GET', 200, 'hello world'],
+  ['/env', 'GET', 200],
   ['/', 'POST', 404],
   ['/dontexist', 'GET', 404],
 
@@ -65,15 +69,27 @@ const tests = [
   ['/error/code/404', 'GET', 404],
   ['/error/code/505', 'GET', 505],
   ['/error/code/606', 'GET', 500],
+
+  // Email tests.
+  ['/mailgun', 'GET', 200],
+  ['/mailgun', 'POST', 200],
 ]
 
+// This is your API key that you retrieve from www.mailgun.com/cp (free up to 10K monthly emails)
+let nodemailerMailgun
+if (process.env.MAILGUN_API_KEY !== undefined) {
+  nodemailerMailgun = nodemailer.createTransport(nodemailerMailgunTransport({
+    auth: {
+      api_key: process.env.MAILGUN_API_KEY,
+      domain: process.env.MAILGUN_DOMAIN,
+    }
+  }))
+}
+
 const app = express()
+app.use(express.urlencoded({ extended: false }))
 app.get('/', (req, res) => {
-  const env = [];
-  for (const key of Object.keys(process.env).sort()) {
-    env.push(`<li>${key}: ${process.env[key]}</li>`);
-  }
-  res.send(`<!doctype html>
+  res.send(`
 <html lang=en>
 <head>
 <meta charset=utf-8>
@@ -81,15 +97,19 @@ app.get('/', (req, res) => {
 </head>
 <body>
 <ul>
-${tests.map(t => `<li><a href="${t[0]}">${t[0]}</a></li>`).join('\n')}
-</ul>
-<h1>Env vars</h1>
-${env.join('\n')}
-<ul>
+${tests.filter(t => t[1] === 'GET').map(t => `<li><a href="${t[0]}">${t[0]}</a></li>`).join('\n')}
 </ul>
 </body>
 </html>
 `)
+})
+app.get('/env', (req, res) => {
+  const env = [];
+  for (const key of Object.keys(process.env).sort()) {
+    env.push(`${key}: ${process.env[key]}`);
+  }
+  console.log(env.join('\n'))
+  res.send('env vars printed to console')
 })
 app.get('/hello', (req, res) => {
   res.send('hello world')
@@ -148,11 +168,50 @@ app.get('/error/custom-handler',
     res.status(500).send(res.locals.msg.join('\n'))
   }
 )
+app.get('/mailgun', (req, res) => {
+  res.send(`<!doctype html>
+<html lang=en>
+<head>
+<meta charset=utf-8>
+<title>Min sane</title>
+</head>
+<body>
+<form action="/mailgun" method="post">
+  <input type="email" name="to" placeholder="To email"><br>
+  <input type="text" name="title" placeholder="Title"><br>
+  <input type="password" name="password" placeholder="Password"><br>
+  <textarea name="body" rows="5">Body
+
+of email</textarea><br>
+  <input type="submit" value="Send email to Ciro">
+</form>
+</body>
+</html>
+`)
+})
+app.post('/mailgun', (req, res) => {
+  if (
+    req.body.password === process.env.SECRET_PASSWORD &&
+    process.env.MAILGUN_API_KEY !== undefined
+  ) {
+    console.log('will send mailgun');
+    nodemailerMailgun.sendMail({
+      from: 'ciro@' + process.env.MAILGUN_DOMAIN,
+      to: req.body.to,
+      subject: req.body.title,
+      text: req.body.body,
+    }, (err, info) => {
+      if (err) {
+        console.log(`mailgun error: ${err}`);
+      } else {
+        console.log(`mailgun success: ${info}`);
+      }
+    });
+  }
+  res.redirect('/mailgun')
+})
 
 const port = process.env.PORT || 3000;
 const server = app.listen(port, () => {
   console.log(`listening: http://localhost:${server.address().port}`)
-  for (let atest of tests) {
-    //test(...atest)
-  }
 })
