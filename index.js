@@ -4,6 +4,31 @@
 
 const nodemailer = require('nodemailer');
 const nodemailerMailgunTransport = require('nodemailer-mailgun-transport');
+// This is your API key that you retrieve from www.mailgun.com/cp (free up to 10K monthly emails)
+let nodemailerMailgun
+if (process.env.MAILGUN_API_KEY !== undefined) {
+  nodemailerMailgun = nodemailer.createTransport(nodemailerMailgunTransport({
+    auth: {
+      api_key: process.env.MAILGUN_API_KEY,
+      domain: process.env.MAILGUN_DOMAIN,
+    }
+  }))
+}
+
+// https://docs.cloudmailin.com/outbound/examples/send_email_with_node_js/
+const cloudmailin = require("cloudmailin")
+let cloudmailinClient
+if (process.env.CLOUDMAILIN_USERNAME !== undefined) {
+  cloudmailinClient = new cloudmailin.MessageClient({
+    username: process.env.CLOUDMAILIN_USERNAME,
+    apiKey: process.env.CLOUDMAILIN_PASSWORD,
+  });
+}
+
+const sgMail = require('@sendgrid/mail')
+if (process.env.SENDGRID_API_KEY !== undefined) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY)
+}
 
 const express = require('express')
 
@@ -74,17 +99,6 @@ const tests = [
   ['/mailgun', 'GET', 200],
   ['/mailgun', 'POST', 200],
 ]
-
-// This is your API key that you retrieve from www.mailgun.com/cp (free up to 10K monthly emails)
-let nodemailerMailgun
-if (process.env.MAILGUN_API_KEY !== undefined) {
-  nodemailerMailgun = nodemailer.createTransport(nodemailerMailgunTransport({
-    auth: {
-      api_key: process.env.MAILGUN_API_KEY,
-      domain: process.env.MAILGUN_DOMAIN,
-    }
-  }))
-}
 
 const app = express()
 app.use(express.urlencoded({ extended: false }))
@@ -177,36 +191,79 @@ app.get('/mailgun', (req, res) => {
 </head>
 <body>
 <form action="/mailgun" method="post">
-  <input type="email" name="to" placeholder="To email"><br>
-  <input type="text" name="title" placeholder="Title"><br>
-  <input type="password" name="password" placeholder="Password"><br>
-  <textarea name="body" rows="5">Body
+  <select name="provider">
+    <option value="sendgrid">Sendgrid</option>
+    <option value="mailgun">Mailgun</option>
+    <option value="cloudmailin">CloudMailin</option>
+  </select><br>
+  <input type="email" name="to" placeholder="To email" value="ciro.santilli@gmail.com"><br>
+  <input type="text" name="title" placeholder="Title" value="Your account has been created"><br>
+  <input type="password" name="password" placeholder="Password" value="aa"><br>
+  <textarea name="body" rows="5">Welcome to ourbigbook.com
 
-of email</textarea><br>
-  <input type="submit" value="Send email to Ciro">
+You can update your settings under the login page.
+
+Happy learning.
+</textarea><br>
+  <input type="submit" value="Send email">
 </form>
 </body>
 </html>
 `)
 })
-app.post('/mailgun', (req, res) => {
-  if (
-    req.body.password === process.env.SECRET_PASSWORD &&
-    process.env.MAILGUN_API_KEY !== undefined
-  ) {
-    console.log('will send mailgun');
-    nodemailerMailgun.sendMail({
-      from: 'ciro@' + process.env.MAILGUN_DOMAIN,
-      to: req.body.to,
-      subject: req.body.title,
-      text: req.body.body,
-    }, (err, info) => {
-      if (err) {
-        console.log(`mailgun error: ${err}`);
-      } else {
-        console.log(`mailgun success: ${info}`);
+app.post('/mailgun', async (req, res, next) => {
+  try {
+    if (req.body.password === process.env.SECRET_PASSWORD) {
+      if (
+        process.env.MAILGUN_API_KEY !== undefined &&
+        req.body.provider === 'mailgun'
+      ) {
+        console.log('will send mailgun');
+        nodemailerMailgun.sendMail({
+          from: 'ciro@' + process.env.MAILGUN_DOMAIN,
+          to: req.body.to,
+          subject: req.body.title,
+          text: req.body.body,
+        }, (err, info) => {
+          if (err) {
+            console.log(`mailgun error: ${err}`);
+          } else {
+            console.log(`mailgun success: ${info}`);
+          }
+        });
+      } else if (
+        process.env.CLOUDMAILIN_USERNAME !== undefined &&
+        req.body.provider === 'cloudmailin'
+      ) {
+        const response = await cloudmailinClient.sendMessage({
+          to: req.body.to,
+          from: 'admin@ourbigbook.com',
+          subject: req.body.title,
+          plain: req.body.body,
+        });
+        console.error(response);
+      } else if (
+        process.env.SENDGRID_API_KEY !== undefined &&
+        req.body.provider === 'sendgrid'
+      ) {
+        const msg = {
+          to: req.body.to,
+          from: 'notification@ourbigbook.com', // Change to your verified sender
+          subject: req.body.title,
+          text: req.body.body,
+        }
+        await sgMail
+          .send(msg)
+          .then(() => {
+            console.log('Email sent')
+          })
+          .catch((error) => {
+            console.error(error)
+          })
       }
-    });
+    }
+  } catch(e) {
+    next(e)
   }
   res.redirect('/mailgun')
 })
