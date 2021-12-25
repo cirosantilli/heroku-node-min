@@ -64,7 +64,6 @@ function check_helper(req, res) {
 
 const tests = [
   ['/hello', 'GET', 200, 'hello world'],
-  ['/env', 'GET', 200],
   ['/', 'POST', 404],
   ['/dontexist', 'GET', 404],
 
@@ -103,6 +102,12 @@ const tests = [
 const app = express()
 app.use(express.urlencoded({ extended: false }))
 app.get('/', (req, res) => {
+  console.log(req)
+  const env = [];
+  for (const key of Object.keys(process.env).sort()) {
+    env.push(`${key}: ${process.env[key]}`);
+  }
+  console.log(env.join('\n'))
   res.send(`
 <html lang=en>
 <head>
@@ -116,14 +121,6 @@ ${tests.filter(t => t[1] === 'GET').map(t => `<li><a href="${t[0]}">${t[0]}</a><
 </body>
 </html>
 `)
-})
-app.get('/env', (req, res) => {
-  const env = [];
-  for (const key of Object.keys(process.env).sort()) {
-    env.push(`${key}: ${process.env[key]}`);
-  }
-  console.log(env.join('\n'))
-  res.send('env vars printed to console')
 })
 app.get('/hello', (req, res) => {
   res.send('hello world')
